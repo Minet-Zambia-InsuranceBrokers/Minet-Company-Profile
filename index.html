@@ -80,6 +80,14 @@
 			text-wrap: balance;
 		}
 
+		h2 {
+			margin: 0 0 6px;
+			color: var(--brand-red);
+			font-family: 'Montserrat', 'Verdana', sans-serif;
+			font-weight: 700;
+			font-size: 1.1rem;
+		}
+
 		.tagline {
 			margin: 10px 0 0;
 			font-size: clamp(1rem, 2vw, 1.1rem);
@@ -126,13 +134,80 @@
 			filter: saturate(1.08);
 		}
 
-		.download-btn:focus-visible {
+		.download-btn:focus-visible,
+		.secondary-btn:focus-visible {
 			outline: 3px solid var(--gold);
 			outline-offset: 3px;
 		}
 
+		/* QR share section */
+		.share {
+			margin-top: 28px;
+			padding-top: 24px;
+			border-top: 1px dashed var(--line);
+		}
+
+		.share p {
+			margin-bottom: 16px;
+			font-size: 0.98rem;
+			color: var(--muted);
+		}
+
+		.qr-frame {
+			display: inline-block;
+			padding: 14px;
+			background: #fff;
+			border: 2px solid var(--brand-red);
+			border-radius: 16px;
+		}
+
+		#qrcode {
+			width: 200px;
+			height: 200px;
+		}
+
+		#qrcode img,
+		#qrcode canvas {
+			display: block;
+			width: 100% !important;
+			height: auto !important;
+		}
+
+		.share-actions {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+			gap: 10px;
+			margin-top: 16px;
+		}
+
+		.secondary-btn {
+			appearance: none;
+			border: 2px solid var(--brand-red);
+			background: #fff;
+			color: var(--brand-red);
+			padding: 10px 16px;
+			border-radius: 12px;
+			font: inherit;
+			font-weight: 700;
+			cursor: pointer;
+			transition: background 180ms ease, color 180ms ease;
+		}
+
+		.secondary-btn:hover {
+			background: var(--brand-red);
+			color: #fff;
+		}
+
+		.status {
+			min-height: 1.4em;
+			margin: 10px 0 0;
+			font-size: 0.9rem;
+			color: var(--brand-red-dark);
+		}
+
 		.hint {
-			margin-top: 14px;
+			margin-top: 20px;
 			font-size: 0.9rem;
 			color: #666;
 		}
@@ -150,7 +225,7 @@
 
 		@media (prefers-reduced-motion: reduce) {
 			.card { animation: none; }
-			.download-btn { transition: none; }
+			.download-btn, .secondary-btn { transition: none; }
 		}
 
 		@media (max-width: 420px) {
@@ -158,7 +233,8 @@
 				font-size: 0.76rem;
 			}
 
-			.download-btn {
+			.download-btn,
+			.secondary-btn {
 				width: 100%;
 			}
 		}
@@ -194,28 +270,129 @@
 				Download Company Profile
 			</a>
 
+			<div class="share">
+				<h2>Share this profile</h2>
+				<p>Scan the code with a phone camera to open this page and download the profile.</p>
+
+				<div class="qr-frame">
+					<div id="qrcode" role="img" aria-label="QR code linking to the Minet Zambia company profile download page"></div>
+				</div>
+
+				<div class="share-actions">
+					<button type="button" class="secondary-btn" id="save-qr">Save QR code</button>
+					<button type="button" class="secondary-btn" id="share-link">Share link</button>
+				</div>
+
+				<p class="status" id="share-status" aria-live="polite"></p>
+			</div>
+
 			<p class="hint">
 				Designed by Minet Zambia IT Department &copy; 2026
 			</p>
 		</section>
 	</main>
 
+	<!-- QR code generator -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
 	<script>
 		// Single place to change the PDF link.
 		var PROFILE_PDF_URL = 'https://github.com/minet-zambia-insurance-brokers/Minet-Zambia-Company-Profile/releases/latest/download/Minet.Zambia.Company.Profile.pdf';
 
+		// Public address of this page. Used for the QR code when the page is
+		// opened locally (e.g. double-clicked from your computer) instead of online.
+		var FALLBACK_PAGE_URL = 'https://minet-zambia-insurance-brokers.github.io/Minet-Zambia-Company-Profile/';
+
+		function getPageUrl() {
+			if (location.protocol === 'http:' || location.protocol === 'https:') {
+				return location.origin + location.pathname;
+			}
+			return FALLBACK_PAGE_URL;
+		}
+
+		function setStatus(message) {
+			var status = document.getElementById('share-status');
+			status.textContent = message;
+			clearTimeout(setStatus.timer);
+			setStatus.timer = setTimeout(function () { status.textContent = ''; }, 4000);
+		}
+
 		window.addEventListener('load', function () {
+			var pageUrl = getPageUrl();
+
+			// Download button + auto-download
 			var downloadLink = document.querySelector('.download-btn');
-			if (!downloadLink) {
-				return;
+			if (downloadLink) {
+				downloadLink.href = PROFILE_PDF_URL;
+
+				// Auto-trigger download for users arriving via QR code or direct page open.
+				setTimeout(function () {
+					downloadLink.click();
+				}, 400);
 			}
 
-			downloadLink.href = PROFILE_PDF_URL;
+			// Generate the QR code
+			var qrBox = document.getElementById('qrcode');
+			if (window.QRCode) {
+				new QRCode(qrBox, {
+					text: pageUrl,
+					width: 400,          // drawn large so the saved PNG prints sharply
+					height: 400,
+					colorDark: '#970000',
+					colorLight: '#ffffff',
+					correctLevel: QRCode.CorrectLevel.H
+				});
+			} else {
+				qrBox.textContent = 'QR code could not load. Check your internet connection.';
+			}
 
-			// Auto-trigger download for users arriving via QR code or direct page open.
-			setTimeout(function () {
-				downloadLink.click();
-			}, 400);
+			// Save QR code as PNG
+			document.getElementById('save-qr').addEventListener('click', function () {
+				var canvas = qrBox.querySelector('canvas');
+				if (!canvas) {
+					setStatus('QR code is not ready yet. Try again in a moment.');
+					return;
+				}
+
+				// Add a white border so scanners read it reliably when printed.
+				var pad = 40;
+				var out = document.createElement('canvas');
+				out.width = canvas.width + pad * 2;
+				out.height = canvas.height + pad * 2;
+				var ctx = out.getContext('2d');
+				ctx.fillStyle = '#ffffff';
+				ctx.fillRect(0, 0, out.width, out.height);
+				ctx.drawImage(canvas, pad, pad);
+
+				var a = document.createElement('a');
+				a.href = out.toDataURL('image/png');
+				a.download = 'Minet-Zambia-Company-Profile-QR.png';
+				document.body.appendChild(a);
+				a.click();
+				a.remove();
+				setStatus('QR code saved.');
+			});
+
+			// Share the page link
+			document.getElementById('share-link').addEventListener('click', function () {
+				var shareData = {
+					title: 'Minet Zambia Company Profile',
+					text: 'Download the Minet Zambia Insurance Brokers company profile:',
+					url: pageUrl
+				};
+
+				if (navigator.share) {
+					navigator.share(shareData).catch(function () { /* user closed the share menu */ });
+				} else if (navigator.clipboard) {
+					navigator.clipboard.writeText(pageUrl).then(function () {
+						setStatus('Link copied. Paste it into WhatsApp, email or anywhere else.');
+					}, function () {
+						setStatus('Copy this link: ' + pageUrl);
+					});
+				} else {
+					setStatus('Copy this link: ' + pageUrl);
+				}
+			});
 		});
 	</script>
 </body>
